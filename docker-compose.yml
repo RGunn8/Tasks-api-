@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: tasks-api-db
+    environment:
+      POSTGRES_DB: task_app_db
+      POSTGRES_USER: taskapp
+      POSTGRES_PASSWORD: taskapp
+    ports:
+      - "5433:5432"
+    volumes:
+      - tasks_api_pgdata:/var/lib/postgresql/data
+
+volumes:
+  tasks_api_pgdata:

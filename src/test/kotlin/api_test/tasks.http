@@ -1,0 +1,57 @@
+### Base
+@baseUrl = http://localhost:8080
+
+### Register
+# @no-cookie-jar
+POST {{baseUrl}}/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "demo@example.com",
+  "password": "password123",
+  "displayName": "Demo User"
+}
+
+### Login
+# @no-cookie-jar
+POST {{baseUrl}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "demo@example.com",
+  "password": "password123"
+}
+
+### Me (paste access token)
+@accessToken = REPLACE_ME
+GET {{baseUrl}}/api/v1/users/me
+Authorization: Bearer {{accessToken}}
+
+### Create Project
+POST {{baseUrl}}/api/v1/projects
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "My Project",
+  "description": "Backend MVP"
+}
+
+### List Projects
+GET {{baseUrl}}/api/v1/projects
+Authorization: Bearer {{accessToken}}
+
+### Create Task (replace projectId)
+@projectId = REPLACE_PROJECT_ID
+POST {{baseUrl}}/api/v1/projects/{{projectId}}/tasks
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "title": "First Task",
+  "description": "Ship the MVP"
+}
+
+### List Tasks
+GET {{baseUrl}}/api/v1/projects/{{projectId}}/tasks
+Authorization: Bearer {{accessToken}}

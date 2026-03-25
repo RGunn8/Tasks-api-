@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tasks API Demo</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 24px; max-width: 1100px; }
+    input, button, textarea, select { padding: 8px; margin: 4px 0; width: 100%; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .card { border: 1px solid #ddd; border-radius: 10px; padding: 16px; }
+    pre { background: #111; color: #0f0; padding: 12px; border-radius: 10px; overflow: auto; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+    .small { font-size: 12px; color: #666; }
+    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  </style>
+</head>
+<body>
+<h1>Tasks API Demo</h1>
+<p class="small">Served by the backend (same origin). Use it to verify auth + projects + tasks quickly.</p>
+
+<div class="row">
+  <div class="card">
+    <h2>Register</h2>
+    <input id="regEmail" placeholder="email" />
+    <input id="regPassword" placeholder="password" type="password" />
+    <input id="regDisplay" placeholder="display name (optional)" />
+    <button onclick="register()">Register</button>
+  </div>
+
+  <div class="card">
+    <h2>Login</h2>
+    <input id="loginEmail" placeholder="email" />
+    <input id="loginPassword" placeholder="password" type="password" />
+    <button onclick="login()">Login</button>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Tokens</h2>
+  <textarea id="accessToken" rows="3" placeholder="access token"></textarea>
+  <textarea id="refreshToken" rows="2" placeholder="refresh token"></textarea>
+  <div class="actions">
+    <button onclick="refresh()">Refresh</button>
+    <button onclick="logout()">Logout</button>
+  </div>
+  <button onclick="me()">GET /api/v1/users/me</button>
+</div>
+
+<div class="row">
+  <div class="card">
+    <h2>Projects</h2>
+    <input id="projectName" placeholder="project name" />
+    <input id="projectDesc" placeholder="description (optional)" />
+    <div class="actions">
+      <button onclick="createProject()">Create Project</button>
+      <button onclick="listProjects()">List Projects</button>
+    </div>
+    <label class="small">Selected project</label>
+    <select id="projectSelect" onchange="onProjectSelect()"></select>
+  </div>
+
+  <div class="card">
+    <h2>Tasks (selected project)</h2>
+    <input id="taskTitle" placeholder="task title" />
+    <input id="taskDesc" placeholder="description (optional)" />
+    <div class="actions">
+      <button onclick="createTask()">Create Task</button>
+      <button onclick="listTasks()">List Tasks</button>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Output</h2>
+  <pre id="out"><code>Ready.</code></pre>
+</div>
+
+<script>
+  function setOut(obj) {
+    const el = document.getElementById('out');
+    el.textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
+  }
+
+  function bearerHeaders() {
+    const token = document.getElementById('accessToken').value.trim();
+    return token ? { 'Authorization': 'Bearer ' + token } : {};
+  }
+
+  function selectedProjectId() {
+    const sel = document.getElementById('projectSelect');
+    return sel.value || null;
+  }
+
+  function onProjectSelect() {
+    const pid = selectedProjectId();
+    if (pid) setOut({ selectedProjectId: pid });
+  }
+
+  function setProjectsDropdown(projects) {
+    const sel = document.getElementById('projectSelect');
+    sel.innerHTML = '';
+    for (const p of projects) {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = `${p.name} (${p.id.slice(0,8)}...)`;
+      sel.appendChild(opt);
+    }
+  }
+
+  async function register() {
+    const body = {
+      email: document.getElementById('regEmail').value,
+      password: document.getElementById('regPassword').value,
+      displayName: document.getElementById('regDisplay').value || null
+    };
+    const res = await fetch('/api/v1/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const json = await res.json();
+    if (res.ok) {
+      document.getElementById('accessToken').value = json.accessToken;
+      document.getElementById('refreshToken').value = json.refreshToken;
+    }
+    setOut({ status: res.status, body: json });
+  }
+
+  async function login() {
+    const body = {
+      email: document.getElementById('loginEmail').value,
+      password: document.getElementById('loginPassword').value
+    };
+    const res = await fetch('/api/v1/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const json = await res.json();
+    if (res.ok) {
+      document.getElementById('accessToken').value = json.accessToken;
+      document.getElementById('refreshToken').value = json.refreshToken;
+    }
+    setOut({ status: res.status, body: json });
+  }
+
+  async function refresh() {
+    const body = { refreshToken: document.getElementById('refreshToken').value };
+    const res = await fetch('/api/v1/auth/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const json = await res.json();
+    if (res.ok) {
+      document.getElementById('accessToken').value = json.accessToken;
+      document.getElementById('refreshToken').value = json.refreshToken;
+    }
+    setOut({ status: res.status, body: json });
+  }
+
+  async function logout() {
+    const body = { refreshToken: document.getElementById('refreshToken').value };
+    const res = await fetch('/api/v1/auth/logout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (res.ok) {
+      setOut({ status: res.status, body: 'logged out' });
+    } else {
+      const json = await res.json().catch(() => ({}));
+      setOut({ status: res.status, body: json });
+    }
+  }
+
+  async function me() {
+    const res = await fetch('/api/v1/users/me', { headers: { ...bearerHeaders() } });
+    const json = await res.json();
+    setOut({ status: res.status, body: json });
+  }
+
+  async function createProject() {
+    const body = {
+      name: document.getElementById('projectName').value,
+      description: document.getElementById('projectDesc').value || null
+    };
+    const res = await fetch('/api/v1/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...bearerHeaders() },
+      body: JSON.stringify(body)
+    });
+    const json = await res.json();
+    if (res.ok) {
+      await listProjects();
+    }
+    setOut({ status: res.status, body: json });
+  }
+
+  async function listProjects() {
+    const res = await fetch('/api/v1/projects', { headers: { ...bearerHeaders() } });
+    const json = await res.json();
+    if (res.ok && Array.isArray(json)) {
+      setProjectsDropdown(json);
+    }
+    setOut({ status: res.status, body: json });
+  }
+
+  async function createTask() {
+    const pid = selectedProjectId();
+    if (!pid) return setOut('Select a project first.');
+
+    const body = {
+      title: document.getElementById('taskTitle').value,
+      description: document.getElementById('taskDesc').value || null
+    };
+
+    const res = await fetch(`/api/v1/projects/${pid}/tasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...bearerHeaders() },
+      body: JSON.stringify(body)
+    });
+    const json = await res.json();
+    setOut({ status: res.status, body: json });
+  }
+
+  async function listTasks() {
+    const pid = selectedProjectId();
+    if (!pid) return setOut('Select a project first.');
+
+    const res = await fetch(`/api/v1/projects/${pid}/tasks`, {
+      headers: { ...bearerHeaders() }
+    });
+    const json = await res.json();
+    setOut({ status: res.status, body: json });
+  }
+</script>
+</body>
+</html>

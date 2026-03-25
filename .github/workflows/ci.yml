@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: task_app_db
+          POSTGRES_USER: taskapp
+          POSTGRES_PASSWORD: taskapp
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U taskapp -d task_app_db"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      - name: Test
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: task_app_db
+          DB_USER: taskapp
+          DB_PASSWORD: taskapp
+          APP_JWT_SECRET: change-me-change-me-change-me-change-me
+        run: ./gradlew test --no-daemon
