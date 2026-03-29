@@ -22,6 +22,24 @@ export type Project = {
 export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'BLOCKED' | 'DONE' | 'CANCELED';
 export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 
+export type CreateTaskBody = {
+  title: string;
+  description?: string | null;
+  status?: TaskStatus | null;
+  priority?: TaskPriority | null;
+  dueAt?: string | null;
+};
+
+export type UpdateTaskBody = {
+  title?: string | null;
+  description?: string | null;
+  status?: TaskStatus | null;
+  priority?: TaskPriority | null;
+  dueAt?: string | null;
+  completedAt?: string | null;
+  projectId?: string | null;
+};
+
 export type Task = {
   id: string;
   projectId: string;
@@ -125,27 +143,22 @@ export const api = {
       token,
     }),
 
-  createTask: (token: string, projectId: string, title: string, description?: string) =>
+  createTask: (token: string, projectId: string, body: CreateTaskBody) =>
     request<Task>(`/api/v1/projects/${projectId}/tasks`, {
       method: 'POST',
       token,
-      body: { title, description: description || null },
+      body,
     }),
 
-  updateTask: (
-    token: string,
-    projectId: string,
-    taskId: string,
-    body: {
-      title?: string | null;
-      description?: string | null;
-      status?: TaskStatus | null;
-      priority?: TaskPriority | null;
-      dueAt?: string | null;
-      completedAt?: string | null;
-    }
-  ) =>
+  updateTask: (token: string, projectId: string, taskId: string, body: UpdateTaskBody) =>
     request<Task>(`/api/v1/projects/${projectId}/tasks/${taskId}`, {
+      method: 'PATCH',
+      token,
+      body,
+    }),
+
+  updateTaskById: (token: string, taskId: string, body: UpdateTaskBody) =>
+    request<Task>(`/api/v1/tasks/${taskId}`, {
       method: 'PATCH',
       token,
       body,
@@ -153,6 +166,12 @@ export const api = {
 
   deleteTask: (token: string, projectId: string, taskId: string) =>
     request<void>(`/api/v1/projects/${projectId}/tasks/${taskId}`, {
+      method: 'DELETE',
+      token,
+    }),
+
+  deleteTaskById: (token: string, taskId: string) =>
+    request<void>(`/api/v1/tasks/${taskId}`, {
       method: 'DELETE',
       token,
     }),
@@ -165,6 +184,8 @@ export const api = {
       status?: string;
       priority?: string;
       completed?: string;
+      dueAfter?: string;
+      dueBefore?: string;
       page?: number;
       size?: number;
       sort?: string;
@@ -175,12 +196,47 @@ export const api = {
     if (params.status) usp.set('status', params.status);
     if (params.priority) usp.set('priority', params.priority);
     if (params.completed) usp.set('completed', params.completed);
+    if (params.dueAfter) usp.set('dueAfter', params.dueAfter);
+    if (params.dueBefore) usp.set('dueBefore', params.dueBefore);
     if (params.page != null) usp.set('page', String(params.page));
     if (params.size != null) usp.set('size', String(params.size));
     if (params.sort) usp.set('sort', params.sort);
 
     const qs = usp.toString();
     return request<Page<Task>>(`/api/v1/projects/${projectId}/tasks${qs ? `?${qs}` : ''}`, {
+      token,
+    });
+  },
+
+  listAllTasks: (
+    token: string,
+    params: {
+      projectId?: string;
+      q?: string;
+      status?: string;
+      priority?: string;
+      completed?: string;
+      dueAfter?: string;
+      dueBefore?: string;
+      page?: number;
+      size?: number;
+      sort?: string;
+    }
+  ) => {
+    const usp = new URLSearchParams();
+    if (params.projectId) usp.set('projectId', params.projectId);
+    if (params.q) usp.set('q', params.q);
+    if (params.status) usp.set('status', params.status);
+    if (params.priority) usp.set('priority', params.priority);
+    if (params.completed) usp.set('completed', params.completed);
+    if (params.dueAfter) usp.set('dueAfter', params.dueAfter);
+    if (params.dueBefore) usp.set('dueBefore', params.dueBefore);
+    if (params.page != null) usp.set('page', String(params.page));
+    if (params.size != null) usp.set('size', String(params.size));
+    if (params.sort) usp.set('sort', params.sort);
+
+    const qs = usp.toString();
+    return request<Page<Task>>(`/api/v1/tasks${qs ? `?${qs}` : ''}`, {
       token,
     });
   },

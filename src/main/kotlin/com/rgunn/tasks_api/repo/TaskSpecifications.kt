@@ -9,6 +9,10 @@ import java.util.UUID
 
 object TaskSpecifications {
 
+    fun ownerId(ownerId: UUID): Specification<Task> = Specification { root, _, cb ->
+        cb.equal(root.get<Any>("project").get<Any>("owner").get<UUID>("id"), ownerId)
+    }
+
     fun projectId(projectId: UUID): Specification<Task> = Specification { root, _, cb ->
         cb.equal(root.get<Any>("project").get<UUID>("id"), projectId)
     }

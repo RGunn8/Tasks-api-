@@ -21,7 +21,10 @@ data class UpdateTaskRequest(
     val status: TaskStatus? = null,
     val priority: TaskPriority? = null,
     val dueAt: Instant? = null,
-    val completedAt: Instant? = null
+    val completedAt: Instant? = null,
+
+    // Optional: move task to another project/list.
+    val projectId: java.util.UUID? = null
 )
 
 data class TaskResponse(
