@@ -49,7 +49,11 @@ class Task(
     var updatedAt: Instant? = null,
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "project_id", nullable = false)
+    @JoinColumn(name = "owner_id", nullable = false)
+    var owner: User? = null,
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id", nullable = true)
     var project: Project? = null
 ) {
     @PrePersist

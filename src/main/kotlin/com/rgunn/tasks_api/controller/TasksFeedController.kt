@@ -1,5 +1,6 @@
 package com.rgunn.tasks_api.controller
 
+import com.rgunn.tasks_api.dto.CreateTaskGlobalRequest
 import com.rgunn.tasks_api.dto.TaskResponse
 import com.rgunn.tasks_api.dto.UpdateTaskRequest
 import com.rgunn.tasks_api.model.TaskPriority
@@ -31,6 +32,7 @@ class TasksFeedController(
     fun listAll(
         auth: Authentication,
         @RequestParam(required = false) projectId: UUID?,
+        @RequestParam(required = false) unlisted: Boolean?,
         @RequestParam(required = false) q: String?,
         @RequestParam(required = false, name = "status") status: String?,
         @RequestParam(required = false) priority: TaskPriority?,
@@ -47,7 +49,17 @@ class TasksFeedController(
             ?.map { TaskStatus.valueOf(it) }
             ?.toSet()
 
-        return taskService.listAll(ownerId, projectId, q, statuses, priority, dueBefore, dueAfter, completed, pageable)
+        return taskService.listAll(ownerId, projectId, unlisted, q, statuses, priority, dueBefore, dueAfter, completed, pageable)
+    }
+
+    @org.springframework.web.bind.annotation.PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    fun create(
+        auth: Authentication,
+        @RequestBody req: CreateTaskGlobalRequest
+    ): TaskResponse {
+        val ownerId = UUID.fromString(auth.name)
+        return taskService.createGlobal(ownerId, req)
     }
 
     @PatchMapping("/{taskId}")

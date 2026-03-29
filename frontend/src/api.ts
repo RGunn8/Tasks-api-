@@ -38,11 +38,12 @@ export type UpdateTaskBody = {
   dueAt?: string | null;
   completedAt?: string | null;
   projectId?: string | null;
+  unlist?: boolean | null;
 };
 
 export type Task = {
   id: string;
-  projectId: string;
+  projectId: string | null;
   title: string;
   description: string | null;
   status: TaskStatus;
@@ -150,6 +151,13 @@ export const api = {
       body,
     }),
 
+  createTaskGlobal: (token: string, body: CreateTaskBody & { projectId?: string | null }) =>
+    request<Task>('/api/v1/tasks', {
+      method: 'POST',
+      token,
+      body,
+    }),
+
   updateTask: (token: string, projectId: string, taskId: string, body: UpdateTaskBody) =>
     request<Task>(`/api/v1/projects/${projectId}/tasks/${taskId}`, {
       method: 'PATCH',
@@ -212,6 +220,7 @@ export const api = {
     token: string,
     params: {
       projectId?: string;
+      unlisted?: boolean;
       q?: string;
       status?: string;
       priority?: string;
@@ -225,6 +234,7 @@ export const api = {
   ) => {
     const usp = new URLSearchParams();
     if (params.projectId) usp.set('projectId', params.projectId);
+    if (params.unlisted != null) usp.set('unlisted', String(params.unlisted));
     if (params.q) usp.set('q', params.q);
     if (params.status) usp.set('status', params.status);
     if (params.priority) usp.set('priority', params.priority);

@@ -1,6 +1,5 @@
 package com.rgunn.tasks_api.model
 
-import jakarta.persistence.CascadeType
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.FetchType
@@ -9,7 +8,6 @@ import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
-import jakarta.persistence.OneToMany
 import jakarta.persistence.PrePersist
 import jakarta.persistence.PreUpdate
 import jakarta.persistence.Table
@@ -38,10 +36,7 @@ class Project(
     var createdAt: Instant? = null,
 
     @Column(name = "updated_at")
-    var updatedAt: Instant? = null,
-
-    @OneToMany(mappedBy = "project", cascade = [CascadeType.ALL], orphanRemoval = true)
-    var tasks: MutableList<Task> = mutableListOf()
+    var updatedAt: Instant? = null
 ) {
 
     @PrePersist
