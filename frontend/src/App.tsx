@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import './App.css';
-import { api, type ApiError, type Project, type Task } from './api';
+import { api, type ApiError, type Page, type Project, type Task } from './api';
 
 function formatErr(e: unknown) {
   const err = e as ApiError;
   if (err?.fields) return `${err.message}\n${JSON.stringify(err.fields, null, 2)}`;
   return err?.message ?? String(e);
+}
+
+function nowIso() {
+  return new Date().toISOString();
 }
 
 export default function App() {
@@ -24,20 +28,42 @@ export default function App() {
 
   // Projects
   const [projects, setProjects] = useState<Project[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  const selectedProject = useMemo(
+    () => projects.find((p) => p.id === selectedProjectId) ?? null,
+    [projects, selectedProjectId]
+  );
+
   const [projectName, setProjectName] = useState('');
   const [projectDesc, setProjectDesc] = useState('');
-  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
 
   // Tasks
+  const [taskPage, setTaskPage] = useState<Page<Task> | null>(null);
+  const tasks = taskPage?.content ?? [];
+
+  const [selectedTaskId, setSelectedTaskId] = useState<string>('');
+  const selectedTask = useMemo(
+    () => tasks.find((t) => t.id === selectedTaskId) ?? null,
+    [tasks, selectedTaskId]
+  );
+
   const [taskTitle, setTaskTitle] = useState('');
   const [taskDesc, setTaskDesc] = useState('');
-  const [tasks, setTasks] = useState<Task[]>([]);
 
-  // Filters
+  // Edit task
+  const [editTitle, setEditTitle] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editStatus, setEditStatus] = useState('');
+  const [editPriority, setEditPriority] = useState('');
+
+  // Filters + pagination
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('');
   const [priority, setPriority] = useState('');
   const [completed, setCompleted] = useState('');
+
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(10);
 
   useEffect(() => {
     localStorage.setItem('accessToken', accessToken);
@@ -48,6 +74,30 @@ export default function App() {
   }, [refreshToken]);
 
   const authed = useMemo(() => accessToken.trim().length > 0, [accessToken]);
+
+  useEffect(() => {
+    // When project selection changes, populate project edit fields.
+    if (selectedProject) {
+      setProjectName(selectedProject.name);
+      setProjectDesc(selectedProject.description ?? '');
+      // reset task selection
+      setSelectedTaskId('');
+      setEditTitle('');
+      setEditDesc('');
+      setEditStatus('');
+      setEditPriority('');
+    }
+  }, [selectedProject]);
+
+  useEffect(() => {
+    // When task selection changes, populate edit fields.
+    if (selectedTask) {
+      setEditTitle(selectedTask.title);
+      setEditDesc(selectedTask.description ?? '');
+      setEditStatus(selectedTask.status);
+      setEditPriority(selectedTask.priority ?? '');
+    }
+  }, [selectedTask]);
 
   async function handleRegister() {
     try {
@@ -97,19 +147,22 @@ export default function App() {
       setAccessToken('');
       setRefreshToken('');
       setProjects([]);
-      setTasks([]);
+      setTaskPage(null);
       setSelectedProjectId('');
+      setSelectedTaskId('');
       setOut('Logged out');
     } catch (e) {
       setOut(formatErr(e));
     }
   }
 
-  async function handleListProjects() {
+  async function handleListProjects(selectFirstIfEmpty = true) {
     try {
       const res = await api.listProjects(accessToken);
       setProjects(res);
-      if (!selectedProjectId && res.length) setSelectedProjectId(res[0].id);
+      if (selectFirstIfEmpty && !selectedProjectId && res.length) {
+        setSelectedProjectId(res[0].id);
+      }
       setOut(JSON.stringify(res, null, 2));
     } catch (e) {
       setOut(formatErr(e));
@@ -120,29 +173,68 @@ export default function App() {
     try {
       const res = await api.createProject(accessToken, projectName, projectDesc);
       setOut(JSON.stringify(res, null, 2));
-      await handleListProjects();
+      await handleListProjects(false);
+      setSelectedProjectId(res.id);
     } catch (e) {
       setOut(formatErr(e));
     }
   }
 
-  async function handleListTasks() {
+  async function handleUpdateProject() {
+    if (!selectedProjectId) return;
+    try {
+      const res = await api.updateProject(accessToken, selectedProjectId, {
+        name: projectName || null,
+        description: projectDesc || null,
+      });
+      setOut(JSON.stringify(res, null, 2));
+      await handleListProjects(false);
+    } catch (e) {
+      setOut(formatErr(e));
+    }
+  }
+
+  async function handleDeleteProject() {
+    if (!selectedProjectId) return;
+    if (!confirm('Delete this project and all tasks?')) return;
+
+    try {
+      await api.deleteProject(accessToken, selectedProjectId);
+      setOut('Project deleted');
+      setSelectedProjectId('');
+      setTaskPage(null);
+      await handleListProjects(true);
+    } catch (e) {
+      setOut(formatErr(e));
+    }
+  }
+
+  async function handleListTasks(newPage?: number) {
     if (!selectedProjectId) {
       setOut('Select a project first.');
       return;
     }
+
+    const p = newPage ?? page;
+
     try {
-      const page = await api.listTasks(accessToken, selectedProjectId, {
+      const res = await api.listTasks(accessToken, selectedProjectId, {
         q: q || undefined,
         status: status || undefined,
         priority: priority || undefined,
         completed: completed || undefined,
-        page: 0,
-        size: 50,
+        page: p,
+        size,
         sort: 'createdAt,desc',
       });
-      setTasks(page.content);
-      setOut(JSON.stringify(page, null, 2));
+      setTaskPage(res);
+      setPage(p);
+      setOut(JSON.stringify(res, null, 2));
+
+      // if current selected task is not on this page, clear selection
+      if (selectedTaskId && !res.content.some((t) => t.id === selectedTaskId)) {
+        setSelectedTaskId('');
+      }
     } catch (e) {
       setOut(formatErr(e));
     }
@@ -156,6 +248,51 @@ export default function App() {
     try {
       const res = await api.createTask(accessToken, selectedProjectId, taskTitle, taskDesc);
       setOut(JSON.stringify(res, null, 2));
+      setTaskTitle('');
+      setTaskDesc('');
+      await handleListTasks(0);
+    } catch (e) {
+      setOut(formatErr(e));
+    }
+  }
+
+  async function handleUpdateTask() {
+    if (!selectedProjectId || !selectedTaskId) return;
+    try {
+      const res = await api.updateTask(accessToken, selectedProjectId, selectedTaskId, {
+        title: editTitle || null,
+        description: editDesc || null,
+        status: editStatus || null,
+        priority: editPriority || null,
+      });
+      setOut(JSON.stringify(res, null, 2));
+      await handleListTasks();
+    } catch (e) {
+      setOut(formatErr(e));
+    }
+  }
+
+  async function handleMarkCompleted() {
+    if (!selectedProjectId || !selectedTaskId) return;
+    try {
+      const res = await api.updateTask(accessToken, selectedProjectId, selectedTaskId, {
+        completedAt: nowIso(),
+      });
+      setOut(JSON.stringify(res, null, 2));
+      await handleListTasks();
+    } catch (e) {
+      setOut(formatErr(e));
+    }
+  }
+
+  async function handleDeleteTask() {
+    if (!selectedProjectId || !selectedTaskId) return;
+    if (!confirm('Delete this task?')) return;
+
+    try {
+      await api.deleteTask(accessToken, selectedProjectId, selectedTaskId);
+      setOut('Task deleted');
+      setSelectedTaskId('');
       await handleListTasks();
     } catch (e) {
       setOut(formatErr(e));
@@ -164,9 +301,9 @@ export default function App() {
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: 24 }}>
-      <h1>Tasks API — React Demo</h1>
+      <h1>Quick Task</h1>
       <p style={{ opacity: 0.8 }}>
-        Dev: run backend on <code>localhost:8080</code> and frontend on <code>localhost:5173</code>.
+        React UI for the Quick Task API (Spring Boot). Dev: backend <code>localhost:8080</code>, frontend <code>localhost:5173</code>.
       </p>
 
       <div className="grid2">
@@ -201,28 +338,47 @@ export default function App() {
         <div className="card">
           <h2>Projects</h2>
           <div className="grid2">
-            <button onClick={handleListProjects} disabled={!authed}>List Projects</button>
-            <button onClick={handleCreateProject} disabled={!authed || !projectName}>Create Project</button>
+            <button onClick={() => handleListProjects(true)} disabled={!authed}>List</button>
+            <button onClick={handleCreateProject} disabled={!authed || !projectName}>Create</button>
           </div>
-          <input placeholder="project name" value={projectName} onChange={(e) => setProjectName(e.target.value)} />
-          <input placeholder="description" value={projectDesc} onChange={(e) => setProjectDesc(e.target.value)} />
 
           <label style={{ display: 'block', marginTop: 8, opacity: 0.8 }}>Selected project</label>
-          <select value={selectedProjectId} onChange={(e) => setSelectedProjectId(e.target.value)} disabled={!projects.length}>
+          <select
+            value={selectedProjectId}
+            onChange={(e) => setSelectedProjectId(e.target.value)}
+            disabled={!projects.length}
+          >
+            <option value="">(select)</option>
             {projects.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name} ({p.id.slice(0, 8)}…)
               </option>
             ))}
           </select>
+
+          <h3 style={{ marginTop: 12 }}>Edit / Create form</h3>
+          <input placeholder="project name" value={projectName} onChange={(e) => setProjectName(e.target.value)} />
+          <input placeholder="description" value={projectDesc} onChange={(e) => setProjectDesc(e.target.value)} />
+
+          <div className="grid2">
+            <button onClick={handleUpdateProject} disabled={!authed || !selectedProjectId}>Update</button>
+            <button onClick={handleDeleteProject} disabled={!authed || !selectedProjectId}>Delete</button>
+          </div>
+
+          <p style={{ opacity: 0.7, marginTop: 10 }}>
+            Tip: Select a project, edit name/description, then click Update.
+          </p>
         </div>
 
         <div className="card">
           <h2>Tasks</h2>
+
           <div className="grid2">
-            <button onClick={handleListTasks} disabled={!authed || !selectedProjectId}>List Tasks</button>
-            <button onClick={handleCreateTask} disabled={!authed || !selectedProjectId || !taskTitle}>Create Task</button>
+            <button onClick={() => handleListTasks(0)} disabled={!authed || !selectedProjectId}>List</button>
+            <button onClick={handleCreateTask} disabled={!authed || !selectedProjectId || !taskTitle}>Create</button>
           </div>
+
+          <h3 style={{ marginTop: 12 }}>Create</h3>
           <input placeholder="task title" value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} />
           <input placeholder="description" value={taskDesc} onChange={(e) => setTaskDesc(e.target.value)} />
 
@@ -232,16 +388,71 @@ export default function App() {
           <input placeholder="priority (LOW|MEDIUM|HIGH|URGENT)" value={priority} onChange={(e) => setPriority(e.target.value)} />
           <input placeholder="completed (true|false)" value={completed} onChange={(e) => setCompleted(e.target.value)} />
 
-          <h3 style={{ marginTop: 12 }}>Latest results</h3>
-          <div style={{ maxHeight: 240, overflow: 'auto', border: '1px solid #333', borderRadius: 8, padding: 8 }}>
+          <h3 style={{ marginTop: 12 }}>Pagination</h3>
+          <div className="grid2">
+            <input
+              placeholder="page"
+              value={String(page)}
+              onChange={(e) => setPage(Number(e.target.value) || 0)}
+            />
+            <input
+              placeholder="size"
+              value={String(size)}
+              onChange={(e) => setSize(Number(e.target.value) || 10)}
+            />
+          </div>
+          <div className="grid2">
+            <button
+              onClick={() => handleListTasks(Math.max(0, page - 1))}
+              disabled={!authed || !selectedProjectId || page <= 0}
+            >
+              Prev
+            </button>
+            <button
+              onClick={() => handleListTasks(page + 1)}
+              disabled={!authed || !selectedProjectId || (taskPage ? page + 1 >= taskPage.totalPages : false)}
+            >
+              Next
+            </button>
+          </div>
+          <div style={{ opacity: 0.7 }}>
+            {taskPage ? `Page ${taskPage.number + 1} of ${taskPage.totalPages} (total ${taskPage.totalElements})` : 'No page loaded'}
+          </div>
+
+          <h3 style={{ marginTop: 12 }}>Results</h3>
+          <div style={{ maxHeight: 220, overflow: 'auto', border: '1px solid #333', borderRadius: 8, padding: 8 }}>
             {tasks.map((t) => (
-              <div key={t.id} style={{ padding: '6px 0', borderBottom: '1px solid #222' }}>
-                <div><strong>{t.title}</strong> <span style={{ opacity: 0.7 }}>({t.status}{t.priority ? ` / ${t.priority}` : ''})</span></div>
-                {t.description ? <div style={{ opacity: 0.8 }}>{t.description}</div> : null}
-              </div>
+              <label key={t.id} style={{ display: 'block', padding: '6px 0', borderBottom: '1px solid #222' }}>
+                <input
+                  type="radio"
+                  name="task"
+                  value={t.id}
+                  checked={selectedTaskId === t.id}
+                  onChange={() => setSelectedTaskId(t.id)}
+                  style={{ width: 'auto', marginRight: 8 }}
+                />
+                <strong>{t.title}</strong>{' '}
+                <span style={{ opacity: 0.7 }}>
+                  ({t.status}{t.priority ? ` / ${t.priority}` : ''}{t.completedAt ? ' / completed' : ''})
+                </span>
+                {t.description ? <div style={{ opacity: 0.85, marginLeft: 26 }}>{t.description}</div> : null}
+              </label>
             ))}
             {!tasks.length ? <div style={{ opacity: 0.7 }}>No tasks loaded.</div> : null}
           </div>
+
+          <h3 style={{ marginTop: 12 }}>Edit selected task</h3>
+          <input placeholder="title" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} disabled={!selectedTaskId} />
+          <input placeholder="description" value={editDesc} onChange={(e) => setEditDesc(e.target.value)} disabled={!selectedTaskId} />
+          <div className="grid2">
+            <input placeholder="status (TODO...)" value={editStatus} onChange={(e) => setEditStatus(e.target.value)} disabled={!selectedTaskId} />
+            <input placeholder="priority (LOW...)" value={editPriority} onChange={(e) => setEditPriority(e.target.value)} disabled={!selectedTaskId} />
+          </div>
+          <div className="grid2">
+            <button onClick={handleUpdateTask} disabled={!authed || !selectedProjectId || !selectedTaskId}>Update</button>
+            <button onClick={handleDeleteTask} disabled={!authed || !selectedProjectId || !selectedTaskId}>Delete</button>
+          </div>
+          <button onClick={handleMarkCompleted} disabled={!authed || !selectedProjectId || !selectedTaskId}>Mark completed</button>
         </div>
       </div>
 

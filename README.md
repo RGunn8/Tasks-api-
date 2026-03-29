@@ -1,4 +1,4 @@
-# Tasks API (Spring Boot + Kotlin)
+# Quick Task API (Spring Boot + Kotlin)
 
 A task management backend API built with **Spring Boot**, **Kotlin**, **PostgreSQL**, **Flyway**, and **JWT**.
 
@@ -36,6 +36,7 @@ You can override via env vars:
 
 ### 3) Open
 
+- React UI: http://localhost:8080/app/
 - Swagger UI: http://localhost:8080/swagger-ui/index.html
 - Demo page: http://localhost:8080/demo/
 - Health: http://localhost:8080/actuator/health

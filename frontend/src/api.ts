@@ -109,11 +109,49 @@ export const api = {
 
   listProjects: (token: string) => request<Project[]>('/api/v1/projects', { token }),
 
+  updateProject: (token: string, projectId: string, body: { name?: string | null; description?: string | null }) =>
+    request<Project>(`/api/v1/projects/${projectId}`, {
+      method: 'PATCH',
+      token,
+      body,
+    }),
+
+  deleteProject: (token: string, projectId: string) =>
+    request<void>(`/api/v1/projects/${projectId}`, {
+      method: 'DELETE',
+      token,
+    }),
+
   createTask: (token: string, projectId: string, title: string, description?: string) =>
     request<Task>(`/api/v1/projects/${projectId}/tasks`, {
       method: 'POST',
       token,
       body: { title, description: description || null },
+    }),
+
+  updateTask: (
+    token: string,
+    projectId: string,
+    taskId: string,
+    body: {
+      title?: string | null;
+      description?: string | null;
+      status?: string | null;
+      priority?: string | null;
+      dueAt?: string | null;
+      completedAt?: string | null;
+    }
+  ) =>
+    request<Task>(`/api/v1/projects/${projectId}/tasks/${taskId}`, {
+      method: 'PATCH',
+      token,
+      body,
+    }),
+
+  deleteTask: (token: string, projectId: string, taskId: string) =>
+    request<void>(`/api/v1/projects/${projectId}/tasks/${taskId}`, {
+      method: 'DELETE',
+      token,
     }),
 
   listTasks: (
