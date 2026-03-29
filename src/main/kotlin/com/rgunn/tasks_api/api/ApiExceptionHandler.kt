@@ -6,6 +6,7 @@ import org.springframework.validation.FieldError
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
+import org.springframework.web.servlet.resource.NoResourceFoundException
 
 @RestControllerAdvice
 class ApiExceptionHandler {
@@ -36,6 +37,12 @@ class ApiExceptionHandler {
     fun handleForbidden(ex: ForbiddenException): ResponseEntity<ApiError> {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
             .body(ApiError(code = "forbidden", message = ex.message ?: "forbidden"))
+    }
+
+    @ExceptionHandler(NoResourceFoundException::class)
+    fun handleNoResource(ex: NoResourceFoundException): ResponseEntity<ApiError> {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(ApiError(code = "not_found", message = "not found"))
     }
 
     @ExceptionHandler(Exception::class)
