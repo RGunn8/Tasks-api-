@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import './App.css';
-import { api, type ApiError, type Page, type Project, type Task } from './api';
+import { api, type ApiError, type Page, type Project, type Task, type TaskPriority, type TaskStatus } from './api';
+import { Toast, useToast } from './toast';
 
 function formatErr(e: unknown) {
   const err = e as ApiError;
@@ -12,8 +13,28 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function isoToLocalInput(iso: string | null): string {
+  if (!iso) return '';
+  // Convert ISO -> YYYY-MM-DDTHH:mm (local)
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function localInputToIso(localValue: string): string | null {
+  if (!localValue.trim()) return null;
+  const d = new Date(localValue);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
+const STATUS_OPTIONS: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'BLOCKED', 'DONE', 'CANCELED'];
+const PRIORITY_OPTIONS: TaskPriority[] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
+
 export default function App() {
   const [out, setOut] = useState<string>('Ready.');
+  const [showDebug, setShowDebug] = useState(false);
+  const { toast, setToast } = useToast();
 
   // Auth
   const [regEmail, setRegEmail] = useState('');
@@ -53,8 +74,9 @@ export default function App() {
   // Edit task
   const [editTitle, setEditTitle] = useState('');
   const [editDesc, setEditDesc] = useState('');
-  const [editStatus, setEditStatus] = useState('');
-  const [editPriority, setEditPriority] = useState('');
+  const [editStatus, setEditStatus] = useState<TaskStatus>('TODO');
+  const [editPriority, setEditPriority] = useState<TaskPriority | ''>('');
+  const [editDueLocal, setEditDueLocal] = useState('');
 
   // Filters + pagination
   const [q, setQ] = useState('');
@@ -82,10 +104,6 @@ export default function App() {
       setProjectDesc(selectedProject.description ?? '');
       // reset task selection
       setSelectedTaskId('');
-      setEditTitle('');
-      setEditDesc('');
-      setEditStatus('');
-      setEditPriority('');
     }
   }, [selectedProject]);
 
@@ -96,6 +114,7 @@ export default function App() {
       setEditDesc(selectedTask.description ?? '');
       setEditStatus(selectedTask.status);
       setEditPriority(selectedTask.priority ?? '');
+      setEditDueLocal(isoToLocalInput(selectedTask.dueAt));
     }
   }, [selectedTask]);
 
@@ -105,8 +124,10 @@ export default function App() {
       setAccessToken(res.accessToken);
       setRefreshToken(res.refreshToken);
       setOut(JSON.stringify(res, null, 2));
+      setToast({ kind: 'success', message: 'Registered and logged in.' });
     } catch (e) {
       setOut(formatErr(e));
+      setToast({ kind: 'error', message: formatErr(e) });
     }
   }
 
@@ -116,8 +137,10 @@ export default function App() {
       setAccessToken(res.accessToken);
       setRefreshToken(res.refreshToken);
       setOut(JSON.stringify(res, null, 2));
+      setToast({ kind: 'success', message: 'Logged in.' });
     } catch (e) {
       setOut(formatErr(e));
+      setToast({ kind: 'error', message: formatErr(e) });
     }
   }
 
@@ -125,8 +148,10 @@ export default function App() {
     try {
       const res = await api.me(accessToken);
       setOut(JSON.stringify(res, null, 2));
+      setToast({ kind: 'info', message: `You are ${res.email} (${res.role})` });
     } catch (e) {
       setOut(formatErr(e));
+      setToast({ kind: 'error', message: formatErr(e) });
     }
   }
 
@@ -136,8 +161,10 @@ export default function App() {
       setAccessToken(res.accessToken);
       setRefreshToken(res.refreshToken);
       setOut(JSON.stringify(res, null, 2));
+      setToast({ kind: 'success', message: 'Token refreshed (rotation).'});
     } catch (e) {
       setOut(formatErr(e));
+      setToast({ kind: 'error', message: formatErr(e) });
     }
   }
 
@@ -151,8 +178,10 @@ export default function App() {
       setSelectedProjectId('');
       setSelectedTaskId('');
       setOut('Logged out');
+      setToast({ kind: 'success', message: 'Logged out.' });
     } catch (e) {
       setOut(formatErr(e));
+      setToast({ kind: 'error', message: formatErr(e) });
     }
   }
 
@@ -166,6 +195,7 @@ export default function App() {
       setOut(JSON.stringify(res, null, 2));
     } catch (e) {
       setOut(formatErr(e));
+      setToast({ kind: 'error', message: formatErr(e) });
     }
   }
 
@@ -175,8 +205,10 @@ export default function App() {
       setOut(JSON.stringify(res, null, 2));
       await handleListProjects(false);
       setSelectedProjectId(res.id);
+      setToast({ kind: 'success', message: 'Project created.' });
     } catch (e) {
       setOut(formatErr(e));
+      setToast({ kind: 'error', message: formatErr(e) });
     }
   }
 
@@ -189,8 +221,10 @@ export default function App() {
       });
       setOut(JSON.stringify(res, null, 2));
       await handleListProjects(false);
+      setToast({ kind: 'success', message: 'Project updated.' });
     } catch (e) {
       setOut(formatErr(e));
+      setToast({ kind: 'error', message: formatErr(e) });
     }
   }
 
@@ -204,8 +238,10 @@ export default function App() {
       setSelectedProjectId('');
       setTaskPage(null);
       await handleListProjects(true);
+      setToast({ kind: 'success', message: 'Project deleted.' });
     } catch (e) {
       setOut(formatErr(e));
+      setToast({ kind: 'error', message: formatErr(e) });
     }
   }
 
@@ -231,12 +267,12 @@ export default function App() {
       setPage(p);
       setOut(JSON.stringify(res, null, 2));
 
-      // if current selected task is not on this page, clear selection
       if (selectedTaskId && !res.content.some((t) => t.id === selectedTaskId)) {
         setSelectedTaskId('');
       }
     } catch (e) {
       setOut(formatErr(e));
+      setToast({ kind: 'error', message: formatErr(e) });
     }
   }
 
@@ -251,37 +287,46 @@ export default function App() {
       setTaskTitle('');
       setTaskDesc('');
       await handleListTasks(0);
+      setToast({ kind: 'success', message: 'Task created.' });
     } catch (e) {
       setOut(formatErr(e));
+      setToast({ kind: 'error', message: formatErr(e) });
     }
   }
 
   async function handleUpdateTask() {
     if (!selectedProjectId || !selectedTaskId) return;
     try {
+      const dueAt = localInputToIso(editDueLocal);
       const res = await api.updateTask(accessToken, selectedProjectId, selectedTaskId, {
         title: editTitle || null,
         description: editDesc || null,
         status: editStatus || null,
-        priority: editPriority || null,
+        priority: (editPriority || null) as TaskPriority | null,
+        dueAt,
       });
       setOut(JSON.stringify(res, null, 2));
       await handleListTasks();
+      setToast({ kind: 'success', message: 'Task updated.' });
     } catch (e) {
       setOut(formatErr(e));
+      setToast({ kind: 'error', message: formatErr(e) });
     }
   }
 
-  async function handleMarkCompleted() {
+  async function setTaskStatus(newStatus: TaskStatus) {
     if (!selectedProjectId || !selectedTaskId) return;
     try {
       const res = await api.updateTask(accessToken, selectedProjectId, selectedTaskId, {
-        completedAt: nowIso(),
+        status: newStatus,
+        completedAt: newStatus === 'DONE' ? nowIso() : null,
       });
       setOut(JSON.stringify(res, null, 2));
       await handleListTasks();
+      setToast({ kind: 'success', message: `Status → ${newStatus}` });
     } catch (e) {
       setOut(formatErr(e));
+      setToast({ kind: 'error', message: formatErr(e) });
     }
   }
 
@@ -294,13 +339,17 @@ export default function App() {
       setOut('Task deleted');
       setSelectedTaskId('');
       await handleListTasks();
+      setToast({ kind: 'success', message: 'Task deleted.' });
     } catch (e) {
       setOut(formatErr(e));
+      setToast({ kind: 'error', message: formatErr(e) });
     }
   }
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: 24 }}>
+      <Toast toast={toast} onClose={() => setToast(null)} />
+
       <h1>Quick Task</h1>
       <p style={{ opacity: 0.8 }}>
         React UI for the Quick Task API (Spring Boot). Dev: backend <code>localhost:8080</code>, frontend <code>localhost:5173</code>.
@@ -356,7 +405,7 @@ export default function App() {
             ))}
           </select>
 
-          <h3 style={{ marginTop: 12 }}>Edit / Create form</h3>
+          <h3 style={{ marginTop: 12 }}>Edit / Create</h3>
           <input placeholder="project name" value={projectName} onChange={(e) => setProjectName(e.target.value)} />
           <input placeholder="description" value={projectDesc} onChange={(e) => setProjectDesc(e.target.value)} />
 
@@ -364,10 +413,6 @@ export default function App() {
             <button onClick={handleUpdateProject} disabled={!authed || !selectedProjectId}>Update</button>
             <button onClick={handleDeleteProject} disabled={!authed || !selectedProjectId}>Delete</button>
           </div>
-
-          <p style={{ opacity: 0.7, marginTop: 10 }}>
-            Tip: Select a project, edit name/description, then click Update.
-          </p>
         </div>
 
         <div className="card">
@@ -444,21 +489,50 @@ export default function App() {
           <h3 style={{ marginTop: 12 }}>Edit selected task</h3>
           <input placeholder="title" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} disabled={!selectedTaskId} />
           <input placeholder="description" value={editDesc} onChange={(e) => setEditDesc(e.target.value)} disabled={!selectedTaskId} />
+
           <div className="grid2">
-            <input placeholder="status (TODO...)" value={editStatus} onChange={(e) => setEditStatus(e.target.value)} disabled={!selectedTaskId} />
-            <input placeholder="priority (LOW...)" value={editPriority} onChange={(e) => setEditPriority(e.target.value)} disabled={!selectedTaskId} />
+            <select value={editStatus} onChange={(e) => setEditStatus(e.target.value as TaskStatus)} disabled={!selectedTaskId}>
+              {STATUS_OPTIONS.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+
+            <select value={editPriority} onChange={(e) => setEditPriority(e.target.value as TaskPriority | '')} disabled={!selectedTaskId}>
+              <option value="">(no priority)</option>
+              {PRIORITY_OPTIONS.map((p) => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
           </div>
+
+          <label style={{ display: 'block', marginTop: 8, opacity: 0.8 }}>Due date</label>
+          <input type="datetime-local" value={editDueLocal} onChange={(e) => setEditDueLocal(e.target.value)} disabled={!selectedTaskId} />
+
           <div className="grid2">
             <button onClick={handleUpdateTask} disabled={!authed || !selectedProjectId || !selectedTaskId}>Update</button>
             <button onClick={handleDeleteTask} disabled={!authed || !selectedProjectId || !selectedTaskId}>Delete</button>
           </div>
-          <button onClick={handleMarkCompleted} disabled={!authed || !selectedProjectId || !selectedTaskId}>Mark completed</button>
+
+          <h3 style={{ marginTop: 12 }}>Quick actions</h3>
+          <div className="grid2">
+            <button onClick={() => setTaskStatus('TODO')} disabled={!authed || !selectedProjectId || !selectedTaskId}>Set TODO</button>
+            <button onClick={() => setTaskStatus('IN_PROGRESS')} disabled={!authed || !selectedProjectId || !selectedTaskId}>Set IN_PROGRESS</button>
+          </div>
+          <div className="grid2">
+            <button onClick={() => setTaskStatus('DONE')} disabled={!authed || !selectedProjectId || !selectedTaskId}>Set DONE</button>
+            <button onClick={() => setTaskStatus('CANCELED')} disabled={!authed || !selectedProjectId || !selectedTaskId}>Set CANCELED</button>
+          </div>
         </div>
       </div>
 
       <div className="card">
-        <h2>Output</h2>
-        <pre style={{ whiteSpace: 'pre-wrap' }}>{out}</pre>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+          <h2 style={{ margin: 0 }}>Debug output</h2>
+          <button style={{ width: 'auto' }} onClick={() => setShowDebug((v) => !v)}>
+            {showDebug ? 'Hide' : 'Show'}
+          </button>
+        </div>
+        {showDebug ? <pre style={{ whiteSpace: 'pre-wrap' }}>{out}</pre> : <div style={{ opacity: 0.7 }}>Hidden</div>}
       </div>
 
       <footer style={{ opacity: 0.7, marginTop: 24 }}>

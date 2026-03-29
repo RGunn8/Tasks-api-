@@ -19,13 +19,16 @@ export type Project = {
   updatedAt: string | null;
 };
 
+export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'BLOCKED' | 'DONE' | 'CANCELED';
+export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+
 export type Task = {
   id: string;
   projectId: string;
   title: string;
   description: string | null;
-  status: string;
-  priority: string | null;
+  status: TaskStatus;
+  priority: TaskPriority | null;
   dueAt: string | null;
   completedAt: string | null;
   createdAt: string | null;
@@ -136,8 +139,8 @@ export const api = {
     body: {
       title?: string | null;
       description?: string | null;
-      status?: string | null;
-      priority?: string | null;
+      status?: TaskStatus | null;
+      priority?: TaskPriority | null;
       dueAt?: string | null;
       completedAt?: string | null;
     }
