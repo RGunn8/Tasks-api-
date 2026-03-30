@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
-import './App.css';
 import { Toast, useToast } from './toast';
 import { AuthPage } from './pages/AuthPage';
 import { HomePage } from './pages/HomePage';

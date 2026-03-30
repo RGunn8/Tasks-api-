@@ -17,33 +17,30 @@ export function useToast(timeoutMs = 3500) {
   return { toast, setToast };
 }
 
+function borderClass(kind: NonNullable<ToastState>['kind']) {
+  switch (kind) {
+    case 'success':
+      return 'border-green-600';
+    case 'error':
+      return 'border-red-600';
+    case 'info':
+    default:
+      return 'border-blue-600';
+  }
+}
+
 export function Toast({ toast, onClose }: { toast: ToastState; onClose: () => void }) {
   if (!toast) return null;
-  const bg = '#ffffff';
-  const border = toast.kind === 'success' ? '#16a34a' : toast.kind === 'error' ? '#dc2626' : '#2563eb';
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        right: 20,
-        top: 20,
-        zIndex: 9999,
-        background: bg,
-        border: `1px solid ${border}`,
-        borderRadius: 12,
-        padding: 12,
-        minWidth: 280,
-        maxWidth: 460,
-        boxShadow: '0 10px 30px rgba(0,0,0,0.12)',
-        color: '#111827',
-      }}
+      className={`fixed right-5 top-5 z-[9999] w-[min(520px,92vw)] rounded-xl border bg-white p-3 shadow-xl ${borderClass(toast.kind)}`}
       role="status"
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'start' }}>
-        <div style={{ whiteSpace: 'pre-wrap' }}>{toast.message}</div>
+      <div className="flex items-start justify-between gap-3">
+        <div className="whitespace-pre-wrap text-sm text-slate-900">{toast.message}</div>
         <button
-          style={{ width: 'auto', padding: '6px 10px', borderRadius: 10 }}
+          className="shrink-0 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1 text-sm text-slate-900 hover:bg-slate-100"
           onClick={onClose}
           aria-label="Close"
         >

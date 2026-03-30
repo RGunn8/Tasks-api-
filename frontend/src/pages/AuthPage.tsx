@@ -7,6 +7,27 @@ function formatErr(e: unknown) {
   return err?.message ?? String(e);
 }
 
+function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      {...props}
+      className={`w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 ${props.className ?? ''}`}
+    />
+  );
+}
+
+function Button(props: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'ghost' }) {
+  const v = props.variant ?? 'primary';
+  const base = 'w-full rounded-xl border px-3 py-2 text-sm font-medium disabled:opacity-60';
+  const cls =
+    v === 'primary'
+      ? 'border-indigo-200 bg-indigo-600 text-white hover:bg-indigo-700'
+      : 'border-slate-200 bg-white text-slate-900 hover:bg-slate-50';
+  return (
+    <button {...props} className={`${base} ${cls} ${props.className ?? ''}`} />
+  );
+}
+
 export function AuthPage({
   onAuth,
   toast,
@@ -44,41 +65,77 @@ export function AuthPage({
   }
 
   return (
-    <div style={{ maxWidth: 520, margin: '0 auto', padding: 24 }}>
-      <h1>Quick Task</h1>
-      <p style={{ opacity: 0.8 }}>Login to see your tasks, or create an account.</p>
-
-      <div className="card">
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-          <button style={{ width: 'auto' }} onClick={() => setMode('login')} disabled={mode === 'login'}>
-            Login
-          </button>
-          <button style={{ width: 'auto' }} onClick={() => setMode('register')} disabled={mode === 'register'}>
-            Register
-          </button>
+    <div className="min-h-screen px-4 py-10">
+      <div className="mx-auto max-w-md">
+        <div className="mb-6">
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Quick Task</h1>
+          <p className="mt-2 text-sm text-slate-600">Login to see your tasks, or create an account.</p>
         </div>
 
-        {mode === 'login' ? (
-          <>
-            <h2>Login</h2>
-            <input placeholder="email" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} />
-            <input placeholder="password" type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} />
-            <button onClick={handleLogin} disabled={!loginEmail || !loginPassword}>Login</button>
-          </>
-        ) : (
-          <>
-            <h2>Register</h2>
-            <input placeholder="email" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} />
-            <input placeholder="password" type="password" value={regPassword} onChange={(e) => setRegPassword(e.target.value)} />
-            <input placeholder="display name (optional)" value={regDisplayName} onChange={(e) => setRegDisplayName(e.target.value)} />
-            <button onClick={handleRegister} disabled={!regEmail || !regPassword}>Register</button>
-          </>
-        )}
-      </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex gap-2">
+            <button
+              className={`rounded-xl border px-3 py-2 text-sm ${mode === 'login' ? 'border-indigo-200 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}
+              onClick={() => setMode('login')}
+              disabled={mode === 'login'}
+              type="button"
+            >
+              Login
+            </button>
+            <button
+              className={`rounded-xl border px-3 py-2 text-sm ${mode === 'register' ? 'border-indigo-200 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}
+              onClick={() => setMode('register')}
+              disabled={mode === 'register'}
+              type="button"
+            >
+              Register
+            </button>
+          </div>
 
-      <footer style={{ opacity: 0.7, marginTop: 20 }}>
-        API docs: <a href="/swagger-ui/index.html" target="_blank" rel="noreferrer">Swagger</a>
-      </footer>
+          {mode === 'login' ? (
+            <>
+              <h2 className="text-lg font-semibold text-slate-900">Login</h2>
+              <div className="mt-3 space-y-2">
+                <Input placeholder="email" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} />
+                <Input
+                  placeholder="password"
+                  type="password"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                />
+                <Button onClick={handleLogin} disabled={!loginEmail || !loginPassword}>
+                  Login
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <h2 className="text-lg font-semibold text-slate-900">Register</h2>
+              <div className="mt-3 space-y-2">
+                <Input placeholder="email" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} />
+                <Input
+                  placeholder="password"
+                  type="password"
+                  value={regPassword}
+                  onChange={(e) => setRegPassword(e.target.value)}
+                />
+                <Input
+                  placeholder="display name (optional)"
+                  value={regDisplayName}
+                  onChange={(e) => setRegDisplayName(e.target.value)}
+                />
+                <Button onClick={handleRegister} disabled={!regEmail || !regPassword}>
+                  Register
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+
+        <footer className="mt-6 text-sm text-slate-600">
+          API docs: <a href="/swagger-ui/index.html" target="_blank" rel="noreferrer">Swagger</a>
+        </footer>
+      </div>
     </div>
   );
 }

@@ -48,21 +48,59 @@ function isoToDateUtc(iso: string | null): string {
 const STATUS_OPTIONS: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'BLOCKED', 'DONE', 'CANCELED'];
 const PRIORITY_OPTIONS: TaskPriority[] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
 
-function Badge({ children }: { children: string }) {
+function Card({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <span
-      style={{
-        display: 'inline-block',
-        padding: '2px 8px',
-        borderRadius: 999,
-        border: '1px solid #333',
-        fontSize: 12,
-        opacity: 0.9,
-      }}
-    >
-      {children}
-    </span>
+    <div className={`rounded-2xl border border-slate-200 bg-white p-5 shadow-sm ${className ?? ''}`}>{children}</div>
   );
+}
+
+function Label({ children }: { children: React.ReactNode }) {
+  return <label className="mb-1 block text-xs font-medium text-slate-600">{children}</label>;
+}
+
+function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      {...props}
+      className={`w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 ${props.className ?? ''}`}
+    />
+  );
+}
+
+function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select
+      {...props}
+      className={`w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-200 ${props.className ?? ''}`}
+    />
+  );
+}
+
+function Button(
+  props: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+    variant?: 'primary' | 'ghost' | 'danger';
+    compact?: boolean;
+  }
+) {
+  const v = props.variant ?? 'ghost';
+  const compact = props.compact ?? false;
+
+  const base = `inline-flex items-center justify-center rounded-xl border text-sm font-medium disabled:opacity-60 ${
+    compact ? 'px-3 py-1.5' : 'px-4 py-2'
+  }`;
+
+  const cls =
+    v === 'primary'
+      ? 'border-indigo-200 bg-indigo-600 text-white hover:bg-indigo-700'
+      : v === 'danger'
+        ? 'border-red-200 bg-red-600 text-white hover:bg-red-700'
+        : 'border-slate-200 bg-white text-slate-900 hover:bg-slate-50';
+
+  return <button {...props} className={`${base} ${cls} ${props.className ?? ''}`} />;
+}
+
+function Badge({ children }: { children: string }) {
+  return <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-700">{children}</span>;
 }
 
 function Modal({
@@ -78,30 +116,17 @@ function Modal({
 }) {
   if (!open) return null;
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.6)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 9998,
-      }}
-      onClick={onClose}
-    >
-      <div
-        className="card"
-        style={{ width: 'min(760px, 94vw)', maxHeight: '90vh', overflow: 'auto' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-          <h2 style={{ margin: 0 }}>{title}</h2>
-          <button style={{ width: 'auto' }} onClick={onClose}>
-            Close
-          </button>
-        </div>
-        <div style={{ marginTop: 12 }}>{children}</div>
+    <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
+        <Card>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+            <Button compact onClick={onClose} type="button">
+              Close
+            </Button>
+          </div>
+          <div className="mt-4">{children}</div>
+        </Card>
       </div>
     </div>
   );
@@ -109,19 +134,9 @@ function Modal({
 
 function SkeletonRows({ rows = 6 }: { rows?: number }) {
   return (
-    <div style={{ marginTop: 12 }}>
+    <div className="mt-4 space-y-3 animate-pulse">
       {Array.from({ length: rows }).map((_, i) => (
-        <div
-          key={i}
-          style={{
-            height: 44,
-            borderRadius: 10,
-            border: '1px solid #e5e7eb',
-            background: 'linear-gradient(90deg, #f3f4f6, #ffffff, #f3f4f6)',
-            backgroundSize: '200% 100%',
-            marginBottom: 10,
-          }}
-        />
+        <div key={i} className="h-11 rounded-xl border border-slate-200 bg-slate-100" />
       ))}
     </div>
   );
@@ -362,7 +377,6 @@ export function HomePage({
       setListName('');
       setListDesc('');
       await loadProjects();
-      // default the New Task modal list to the newly created list
       setNewProjectId(res.id);
     } catch (e) {
       toast('error', formatErr(e));
@@ -374,393 +388,392 @@ export function HomePage({
   const empty = !isLoadingTasks && taskPage && taskPage.totalElements === 0;
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 12 }}>
-        <div>
-          <h1 style={{ marginBottom: 6 }}>Quick Task</h1>
-          <div style={{ opacity: 0.8 }}>All tasks ordered by due date (soonest first). Tasks can be unlisted.</div>
-        </div>
-
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'end' }}>
-          <button style={{ width: 'auto' }} onClick={() => setNewOpen(true)}>
-            + New task
-          </button>
-          <button style={{ width: 'auto' }} onClick={() => setListOpen(true)}>
-            + New list
-          </button>
-          <button style={{ width: 'auto' }} onClick={() => loadTasks(page)} disabled={isLoadingTasks}>
-            Reload
-          </button>
-          <button style={{ width: 'auto' }} onClick={handleRefresh}>
-            Refresh token
-          </button>
-          <button style={{ width: 'auto' }} onClick={onLogout}>
-            Logout
-          </button>
-        </div>
-      </div>
-
-      <div className="card" style={{ marginTop: 14 }}>
-        <h2 style={{ marginTop: 0 }}>Filters</h2>
-        <div className="grid2">
+    <div className="min-h-screen px-4 py-8">
+      <div className="mx-auto max-w-6xl">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <label style={{ display: 'block', opacity: 0.8, marginBottom: 4 }}>List</label>
-            <select value={listFilter} onChange={(e) => setListFilter(e.target.value)} disabled={isLoadingProjects}>
-              <option value="">All lists</option>
-              <option value="__unlisted__">No list</option>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Quick Task</h1>
+            <p className="mt-1 text-sm text-slate-600">All tasks ordered by due date (soonest first). Tasks can be unlisted.</p>
           </div>
 
-          <div>
-            <label style={{ display: 'block', opacity: 0.8, marginBottom: 4 }}>Status</label>
-            <select value={status} onChange={(e) => setStatus(e.target.value)}>
-              <option value="">All</option>
-              {STATUS_OPTIONS.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label style={{ display: 'block', opacity: 0.8, marginBottom: 4 }}>Due from</label>
-            <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', opacity: 0.8, marginBottom: 4 }}>Due to</label>
-            <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
-          </div>
-        </div>
-      </div>
-
-      <div className="card" style={{ marginTop: 14 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-          <h2 style={{ margin: 0 }}>Tasks</h2>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'end' }}>
-            <span style={{ opacity: 0.75 }}>
-              {isLoadingTasks
-                ? 'Loading…'
-                : taskPage
-                  ? `Page ${taskPage.number + 1} / ${taskPage.totalPages} — total ${taskPage.totalElements}`
-                  : '—'}
-            </span>
-            <select value={String(size)} onChange={(e) => setSize(Number(e.target.value) || 15)} style={{ width: 'auto' }}>
-              {[10, 15, 25, 50].map((n) => (
-                <option key={n} value={String(n)}>
-                  {n}/page
-                </option>
-              ))}
-            </select>
-            <button style={{ width: 'auto' }} onClick={() => loadTasks(Math.max(0, page - 1))} disabled={isLoadingTasks || page <= 0}>
-              Prev
-            </button>
-            <button
-              style={{ width: 'auto' }}
-              onClick={() => loadTasks(page + 1)}
-              disabled={isLoadingTasks || (taskPage ? page + 1 >= taskPage.totalPages : true)}
-            >
-              Next
-            </button>
+          <div className="flex flex-wrap gap-2 sm:justify-end">
+            <Button variant="primary" onClick={() => setNewOpen(true)} type="button">
+              + New task
+            </Button>
+            <Button onClick={() => setListOpen(true)} type="button">
+              + New list
+            </Button>
+            <Button onClick={() => loadTasks(page)} disabled={isLoadingTasks} type="button">
+              Reload
+            </Button>
+            <Button onClick={handleRefresh} type="button">
+              Refresh token
+            </Button>
+            <Button onClick={onLogout} type="button">
+              Logout
+            </Button>
           </div>
         </div>
 
-        {isLoadingTasks ? (
-          <SkeletonRows />
-        ) : empty ? (
-          <div style={{ padding: 18, opacity: 0.8 }}>
-            <h3 style={{ marginTop: 0 }}>No tasks yet</h3>
-            <p style={{ marginBottom: 0 }}>Click “New task” to add your first task.</p>
-          </div>
-        ) : (
-          <div style={{ overflow: 'auto', marginTop: 12 }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb' }}>
-                  <th style={{ padding: '10px 8px' }}>Due</th>
-                  <th style={{ padding: '10px 8px' }}>Title</th>
-                  <th style={{ padding: '10px 8px' }}>List</th>
-                  <th style={{ padding: '10px 8px' }}>Status</th>
-                  <th style={{ padding: '10px 8px' }}>Priority</th>
-                  <th style={{ padding: '10px 8px' }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {tasks.map((t) => {
-                  const saving = savingTaskId === t.id;
-                  return (
-                    <tr key={t.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                      <td style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}>
-                        {t.dueAt ? <Badge>{isoToDateUtc(t.dueAt)}</Badge> : <span style={{ opacity: 0.6 }}>—</span>}
-                      </td>
-                      <td style={{ padding: '10px 8px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: 600 }}>{t.title}</div>
-                            {t.description ? <div style={{ opacity: 0.8, marginTop: 2 }}>{t.description}</div> : null}
-                          </div>
-                          {saving ? <span style={{ opacity: 0.7, fontSize: 12 }}>Saving…</span> : null}
-                        </div>
-                      </td>
-                      <td style={{ padding: '10px 8px' }}>
-                        <select
-                          value={t.projectId ?? ''}
-                          disabled={saving}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            if (!v) {
-                              handleInlineUpdate(t.id, { unlist: true });
-                            } else {
-                              handleInlineUpdate(t.id, { projectId: v, unlist: false });
-                            }
-                          }}
-                        >
-                          <option value="">(no list)</option>
-                          {projects.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.name}
-                            </option>
-                          ))}
-                        </select>
-                        <div style={{ opacity: 0.6, fontSize: 12, marginTop: 4 }}>
-                          {t.projectId ? projectNameById.get(t.projectId) ?? t.projectId.slice(0, 8) : 'Unlisted'}
-                        </div>
-                      </td>
-                      <td style={{ padding: '10px 8px' }}>
-                        <select
-                          value={t.status}
-                          disabled={saving}
-                          onChange={(e) =>
-                            handleInlineUpdate(t.id, {
-                              status: e.target.value,
-                              completedAt: e.target.value === 'DONE' ? nowIso() : null,
-                            })
-                          }
-                        >
-                          {STATUS_OPTIONS.map((s) => (
-                            <option key={s} value={s}>
-                              {s}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td style={{ padding: '10px 8px' }}>
-                        <select
-                          value={t.priority ?? ''}
-                          disabled={saving}
-                          onChange={(e) => handleInlineUpdate(t.id, { priority: e.target.value || null })}
-                        >
-                          <option value="">(none)</option>
-                          {PRIORITY_OPTIONS.map((p) => (
-                            <option key={p} value={p}>
-                              {p}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td style={{ padding: '10px 8px', textAlign: 'right' }}>
-                        <div style={{ position: 'relative', display: 'inline-block' }}>
-                          <button
-                            style={{ width: 'auto' }}
-                            onClick={() => setOpenMenuTaskId((cur) => (cur === t.id ? null : t.id))}
-                            disabled={saving}
-                          >
-                            ⋯
-                          </button>
-                          {openMenuTaskId === t.id ? (
-                            <div
-                              style={{
-                                position: 'absolute',
-                                right: 0,
-                                top: '110%',
-                                background: '#fff',
-                                border: '1px solid #e5e7eb',
-                                borderRadius: 10,
-                                padding: 8,
-                                minWidth: 160,
-                                zIndex: 9999,
+        <div className="mt-5 grid gap-4">
+          <Card>
+            <h2 className="text-lg font-semibold text-slate-900">Filters</h2>
+            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-4">
+              <div>
+                <Label>List</Label>
+                <Select value={listFilter} onChange={(e) => setListFilter(e.target.value)} disabled={isLoadingProjects}>
+                  <option value="">All lists</option>
+                  <option value="__unlisted__">No list</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <div>
+                <Label>Status</Label>
+                <Select value={status} onChange={(e) => setStatus(e.target.value)}>
+                  <option value="">All</option>
+                  {STATUS_OPTIONS.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <div>
+                <Label>Due from</Label>
+                <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+              </div>
+              <div>
+                <Label>Due to</Label>
+                <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+              </div>
+            </div>
+          </Card>
+
+          <Card>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <h2 className="text-lg font-semibold text-slate-900">Tasks</h2>
+              <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                <span className="text-sm text-slate-600">
+                  {isLoadingTasks
+                    ? 'Loading…'
+                    : taskPage
+                      ? `Page ${taskPage.number + 1} / ${taskPage.totalPages} — total ${taskPage.totalElements}`
+                      : '—'}
+                </span>
+                <Select value={String(size)} onChange={(e) => setSize(Number(e.target.value) || 15)} className="w-auto">
+                  {[10, 15, 25, 50].map((n) => (
+                    <option key={n} value={String(n)}>
+                      {n}/page
+                    </option>
+                  ))}
+                </Select>
+                <Button compact onClick={() => loadTasks(Math.max(0, page - 1))} disabled={isLoadingTasks || page <= 0} type="button">
+                  Prev
+                </Button>
+                <Button
+                  compact
+                  onClick={() => loadTasks(page + 1)}
+                  disabled={isLoadingTasks || (taskPage ? page + 1 >= taskPage.totalPages : true)}
+                  type="button"
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+
+            {isLoadingTasks ? (
+              <SkeletonRows />
+            ) : empty ? (
+              <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6">
+                <h3 className="text-base font-semibold text-slate-900">No tasks yet</h3>
+                <p className="mt-1 text-sm text-slate-600">Click “New task” to add your first task.</p>
+              </div>
+            ) : (
+              <div className="mt-4 overflow-auto">
+                <table className="min-w-full border-separate border-spacing-0">
+                  <thead>
+                    <tr className="text-left text-xs font-semibold text-slate-600">
+                      <th className="border-b border-slate-200 px-3 py-2">Due</th>
+                      <th className="border-b border-slate-200 px-3 py-2">Title</th>
+                      <th className="border-b border-slate-200 px-3 py-2">List</th>
+                      <th className="border-b border-slate-200 px-3 py-2">Status</th>
+                      <th className="border-b border-slate-200 px-3 py-2">Priority</th>
+                      <th className="border-b border-slate-200 px-3 py-2" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tasks.map((t) => {
+                      const saving = savingTaskId === t.id;
+                      return (
+                        <tr key={t.id} className="align-top">
+                          <td className="border-b border-slate-100 px-3 py-3 whitespace-nowrap">
+                            {t.dueAt ? <Badge>{isoToDateUtc(t.dueAt)}</Badge> : <span className="text-sm text-slate-400">—</span>}
+                          </td>
+                          <td className="border-b border-slate-100 px-3 py-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <div className="text-sm font-semibold text-slate-900">{t.title}</div>
+                                {t.description ? <div className="mt-1 text-sm text-slate-600">{t.description}</div> : null}
+                              </div>
+                              {saving ? <span className="text-xs text-slate-500">Saving…</span> : null}
+                            </div>
+                          </td>
+                          <td className="border-b border-slate-100 px-3 py-3">
+                            <Select
+                              value={t.projectId ?? ''}
+                              disabled={saving}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                if (!v) {
+                                  handleInlineUpdate(t.id, { unlist: true });
+                                } else {
+                                  handleInlineUpdate(t.id, { projectId: v, unlist: false });
+                                }
                               }}
                             >
-                              <button
-                                style={{ width: '100%', textAlign: 'left' }}
-                                onClick={() => {
-                                  setOpenMenuTaskId(null);
-                                  openEdit(t);
-                                }}
-                              >
-                                Edit…
-                              </button>
-                              <button
-                                style={{ width: '100%', textAlign: 'left', marginTop: 6 }}
-                                onClick={() => {
-                                  setOpenMenuTaskId(null);
-                                  handleDelete(t.id);
-                                }}
-                              >
-                                Delete
-                              </button>
+                              <option value="">(no list)</option>
+                              {projects.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                  {p.name}
+                                </option>
+                              ))}
+                            </Select>
+                            <div className="mt-1 text-xs text-slate-500">
+                              {t.projectId ? projectNameById.get(t.projectId) ?? t.projectId.slice(0, 8) : 'Unlisted'}
                             </div>
-                          ) : null}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                          </td>
+                          <td className="border-b border-slate-100 px-3 py-3">
+                            <Select
+                              value={t.status}
+                              disabled={saving}
+                              onChange={(e) =>
+                                handleInlineUpdate(t.id, {
+                                  status: e.target.value,
+                                  completedAt: e.target.value === 'DONE' ? nowIso() : null,
+                                })
+                              }
+                            >
+                              {STATUS_OPTIONS.map((s) => (
+                                <option key={s} value={s}>
+                                  {s}
+                                </option>
+                              ))}
+                            </Select>
+                          </td>
+                          <td className="border-b border-slate-100 px-3 py-3">
+                            <Select
+                              value={t.priority ?? ''}
+                              disabled={saving}
+                              onChange={(e) => handleInlineUpdate(t.id, { priority: e.target.value || null })}
+                            >
+                              <option value="">(none)</option>
+                              {PRIORITY_OPTIONS.map((p) => (
+                                <option key={p} value={p}>
+                                  {p}
+                                </option>
+                              ))}
+                            </Select>
+                          </td>
+                          <td className="border-b border-slate-100 px-3 py-3 text-right">
+                            <div className="relative inline-block">
+                              <Button
+                                compact
+                                onClick={() => setOpenMenuTaskId((cur) => (cur === t.id ? null : t.id))}
+                                disabled={saving}
+                                type="button"
+                              >
+                                ⋯
+                              </Button>
+                              {openMenuTaskId === t.id ? (
+                                <div className="absolute right-0 top-[110%] z-[9999] min-w-40 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+                                  <button
+                                    className="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-900 hover:bg-slate-50"
+                                    onClick={() => {
+                                      setOpenMenuTaskId(null);
+                                      openEdit(t);
+                                    }}
+                                    type="button"
+                                  >
+                                    Edit…
+                                  </button>
+                                  <button
+                                    className="mt-1 w-full rounded-lg px-3 py-2 text-left text-sm text-red-700 hover:bg-red-50"
+                                    onClick={() => {
+                                      setOpenMenuTaskId(null);
+                                      handleDelete(t.id);
+                                    }}
+                                    type="button"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              ) : null}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        </div>
+
+        <Modal open={newOpen} title="New task" onClose={() => setNewOpen(false)}>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div>
+              <Label>List (optional)</Label>
+              <Select value={newProjectId} onChange={(e) => setNewProjectId(e.target.value)} disabled={isLoadingProjects}>
+                <option value="">(no list)</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <Label>Due date (optional)</Label>
+              <Input type="date" value={newDueDate} onChange={(e) => setNewDueDate(e.target.value)} />
+            </div>
           </div>
-        )}
+
+          <div className="mt-3">
+            <Label>Title</Label>
+            <Input placeholder="What do you need to do?" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} />
+          </div>
+
+          <div className="mt-3">
+            <Label>Description</Label>
+            <Input placeholder="Optional" value={newDesc} onChange={(e) => setNewDesc(e.target.value)} />
+          </div>
+
+          <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div>
+              <Label>Status</Label>
+              <Select value={newStatus} onChange={(e) => setNewStatus(e.target.value as TaskStatus)}>
+                {STATUS_OPTIONS.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <Label>Priority</Label>
+              <Select value={newPriority} onChange={(e) => setNewPriority(e.target.value as TaskPriority | '')}>
+                <option value="">(none)</option>
+                {PRIORITY_OPTIONS.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          </div>
+
+          <div className="mt-5 flex justify-end gap-2">
+            <Button onClick={() => setNewOpen(false)} disabled={isCreatingTask} type="button">
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={handleCreateTask} disabled={isCreatingTask} type="button">
+              {isCreatingTask ? 'Creating…' : 'Create'}
+            </Button>
+          </div>
+        </Modal>
+
+        <Modal open={listOpen} title="New list" onClose={() => setListOpen(false)}>
+          <div>
+            <Label>Name</Label>
+            <Input placeholder="e.g. Work" value={listName} onChange={(e) => setListName(e.target.value)} />
+          </div>
+          <div className="mt-3">
+            <Label>Description</Label>
+            <Input placeholder="Optional" value={listDesc} onChange={(e) => setListDesc(e.target.value)} />
+          </div>
+          <div className="mt-5 flex justify-end gap-2">
+            <Button onClick={() => setListOpen(false)} disabled={isCreatingList} type="button">
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={handleCreateList} disabled={isCreatingList} type="button">
+              {isCreatingList ? 'Creating…' : 'Create'}
+            </Button>
+          </div>
+        </Modal>
+
+        <Modal open={editOpen} title="Edit task" onClose={() => setEditOpen(false)}>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div>
+              <Label>List</Label>
+              <Select value={editProjectId} onChange={(e) => setEditProjectId(e.target.value)} disabled={isLoadingProjects}>
+                <option value="">(no list)</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <Label>Due date</Label>
+              <Input type="date" value={editDue} onChange={(e) => setEditDue(e.target.value)} />
+            </div>
+          </div>
+
+          <div className="mt-3">
+            <Label>Title</Label>
+            <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
+          </div>
+
+          <div className="mt-3">
+            <Label>Description</Label>
+            <Input value={editDesc} onChange={(e) => setEditDesc(e.target.value)} />
+          </div>
+
+          <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div>
+              <Label>Status</Label>
+              <Select value={editStatus} onChange={(e) => setEditStatus(e.target.value as TaskStatus)}>
+                {STATUS_OPTIONS.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <Label>Priority</Label>
+              <Select value={editPriority} onChange={(e) => setEditPriority(e.target.value as TaskPriority | '')}>
+                <option value="">(none)</option>
+                {PRIORITY_OPTIONS.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          </div>
+
+          <div className="mt-5 flex justify-end gap-2">
+            <Button onClick={() => setEditOpen(false)} disabled={savingTaskId != null} type="button">
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={handleSaveEdit} disabled={savingTaskId != null} type="button">
+              {savingTaskId ? 'Saving…' : 'Save'}
+            </Button>
+          </div>
+        </Modal>
+
+        <footer className="mt-8 text-sm text-slate-600">
+          Backend Swagger: <a href="/swagger-ui/index.html" target="_blank" rel="noreferrer">/swagger-ui</a>
+          {' '}| Backend Demo: <a href="/demo/" target="_blank" rel="noreferrer">/demo/</a>
+        </footer>
       </div>
-
-      <Modal open={newOpen} title="New task" onClose={() => setNewOpen(false)}>
-        <div className="grid2">
-          <div>
-            <label style={{ display: 'block', opacity: 0.8, marginBottom: 4 }}>List (optional)</label>
-            <select value={newProjectId} onChange={(e) => setNewProjectId(e.target.value)} disabled={isLoadingProjects}>
-              <option value="">(no list)</option>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label style={{ display: 'block', opacity: 0.8, marginBottom: 4 }}>Due date (optional)</label>
-            <input type="date" value={newDueDate} onChange={(e) => setNewDueDate(e.target.value)} />
-          </div>
-        </div>
-
-        <label style={{ display: 'block', opacity: 0.8, marginTop: 10, marginBottom: 4 }}>Title</label>
-        <input placeholder="What do you need to do?" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} />
-
-        <label style={{ display: 'block', opacity: 0.8, marginTop: 10, marginBottom: 4 }}>Description</label>
-        <input placeholder="Optional" value={newDesc} onChange={(e) => setNewDesc(e.target.value)} />
-
-        <div className="grid2" style={{ marginTop: 10 }}>
-          <div>
-            <label style={{ display: 'block', opacity: 0.8, marginBottom: 4 }}>Status</label>
-            <select value={newStatus} onChange={(e) => setNewStatus(e.target.value as TaskStatus)}>
-              {STATUS_OPTIONS.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label style={{ display: 'block', opacity: 0.8, marginBottom: 4 }}>Priority</label>
-            <select value={newPriority} onChange={(e) => setNewPriority(e.target.value as TaskPriority | '')}>
-              <option value="">(none)</option>
-              {PRIORITY_OPTIONS.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'end', marginTop: 14 }}>
-          <button style={{ width: 'auto' }} onClick={() => setNewOpen(false)} disabled={isCreatingTask}>
-            Cancel
-          </button>
-          <button style={{ width: 'auto' }} onClick={handleCreateTask} disabled={isCreatingTask}>
-            {isCreatingTask ? 'Creating…' : 'Create'}
-          </button>
-        </div>
-      </Modal>
-
-      <Modal open={listOpen} title="New list" onClose={() => setListOpen(false)}>
-        <label style={{ display: 'block', opacity: 0.8, marginBottom: 4 }}>Name</label>
-        <input placeholder="e.g. Work" value={listName} onChange={(e) => setListName(e.target.value)} />
-
-        <label style={{ display: 'block', opacity: 0.8, marginTop: 10, marginBottom: 4 }}>Description</label>
-        <input placeholder="Optional" value={listDesc} onChange={(e) => setListDesc(e.target.value)} />
-
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'end', marginTop: 14 }}>
-          <button style={{ width: 'auto' }} onClick={() => setListOpen(false)} disabled={isCreatingList}>
-            Cancel
-          </button>
-          <button style={{ width: 'auto' }} onClick={handleCreateList} disabled={isCreatingList}>
-            {isCreatingList ? 'Creating…' : 'Create'}
-          </button>
-        </div>
-      </Modal>
-
-      <Modal open={editOpen} title="Edit task" onClose={() => setEditOpen(false)}>
-        <div className="grid2">
-          <div>
-            <label style={{ display: 'block', opacity: 0.8, marginBottom: 4 }}>List</label>
-            <select value={editProjectId} onChange={(e) => setEditProjectId(e.target.value)} disabled={isLoadingProjects}>
-              <option value="">(no list)</option>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label style={{ display: 'block', opacity: 0.8, marginBottom: 4 }}>Due date</label>
-            <input type="date" value={editDue} onChange={(e) => setEditDue(e.target.value)} />
-          </div>
-        </div>
-
-        <label style={{ display: 'block', opacity: 0.8, marginTop: 10, marginBottom: 4 }}>Title</label>
-        <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
-
-        <label style={{ display: 'block', opacity: 0.8, marginTop: 10, marginBottom: 4 }}>Description</label>
-        <input value={editDesc} onChange={(e) => setEditDesc(e.target.value)} />
-
-        <div className="grid2" style={{ marginTop: 10 }}>
-          <div>
-            <label style={{ display: 'block', opacity: 0.8, marginBottom: 4 }}>Status</label>
-            <select value={editStatus} onChange={(e) => setEditStatus(e.target.value as TaskStatus)}>
-              {STATUS_OPTIONS.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label style={{ display: 'block', opacity: 0.8, marginBottom: 4 }}>Priority</label>
-            <select value={editPriority} onChange={(e) => setEditPriority(e.target.value as TaskPriority | '')}>
-              <option value="">(none)</option>
-              {PRIORITY_OPTIONS.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'end', marginTop: 14 }}>
-          <button style={{ width: 'auto' }} onClick={() => setEditOpen(false)} disabled={savingTaskId != null}>
-            Cancel
-          </button>
-          <button style={{ width: 'auto' }} onClick={handleSaveEdit} disabled={savingTaskId != null}>
-            {savingTaskId ? 'Saving…' : 'Save'}
-          </button>
-        </div>
-      </Modal>
-
-      <footer style={{ opacity: 0.7, marginTop: 24 }}>
-        Backend Swagger: <a href="/swagger-ui/index.html" target="_blank" rel="noreferrer">/swagger-ui</a>
-        {' '}| Backend Demo: <a href="/demo/" target="_blank" rel="noreferrer">/demo/</a>
-      </footer>
     </div>
   );
 }
