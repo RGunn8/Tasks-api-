@@ -114,15 +114,37 @@ function Modal({
   children: React.ReactNode;
   onClose: () => void;
 }) {
+  useEffect(() => {
+    if (!open) return;
+
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open, onClose]);
+
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/55 backdrop-blur-[1px] p-4"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+    >
       <div className="w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
         <Card>
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-            <Button compact onClick={onClose} type="button">
-              Close
+            <Button compact onClick={onClose} type="button" aria-label="Close">
+              ✕
             </Button>
           </div>
           <div className="mt-4">{children}</div>
@@ -297,6 +319,10 @@ export function HomePage({
   }
 
   function openEdit(t: Task) {
+    // Ensure modals don't stack on top of each other.
+    setNewOpen(false);
+    setListOpen(false);
+
     setEditTask(t);
     setEditTitle(t.title);
     setEditDesc(t.description ?? '');
@@ -397,10 +423,27 @@ export function HomePage({
           </div>
 
           <div className="flex flex-wrap gap-2 sm:justify-end">
-            <Button variant="primary" onClick={() => setNewOpen(true)} type="button">
+            <Button
+              variant="primary"
+              onClick={() => {
+                setOpenMenuTaskId(null);
+                setEditOpen(false);
+                setListOpen(false);
+                setNewOpen(true);
+              }}
+              type="button"
+            >
               + New task
             </Button>
-            <Button onClick={() => setListOpen(true)} type="button">
+            <Button
+              onClick={() => {
+                setOpenMenuTaskId(null);
+                setEditOpen(false);
+                setNewOpen(false);
+                setListOpen(true);
+              }}
+              type="button"
+            >
               + New list
             </Button>
             <Button onClick={() => loadTasks(page)} disabled={isLoadingTasks} type="button">
