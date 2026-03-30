@@ -116,8 +116,8 @@ function SkeletonRows({ rows = 6 }: { rows?: number }) {
           style={{
             height: 44,
             borderRadius: 10,
-            border: '1px solid #222',
-            background: 'linear-gradient(90deg, #141414, #1a1a1a, #141414)',
+            border: '1px solid #e5e7eb',
+            background: 'linear-gradient(90deg, #f3f4f6, #ffffff, #f3f4f6)',
             backgroundSize: '200% 100%',
             marginBottom: 10,
           }}
@@ -482,7 +482,7 @@ export function HomePage({
           <div style={{ overflow: 'auto', marginTop: 12 }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ textAlign: 'left', borderBottom: '1px solid #222' }}>
+                <tr style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb' }}>
                   <th style={{ padding: '10px 8px' }}>Due</th>
                   <th style={{ padding: '10px 8px' }}>Title</th>
                   <th style={{ padding: '10px 8px' }}>List</th>
@@ -495,7 +495,7 @@ export function HomePage({
                 {tasks.map((t) => {
                   const saving = savingTaskId === t.id;
                   return (
-                    <tr key={t.id} style={{ borderBottom: '1px solid #151515' }}>
+                    <tr key={t.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
                       <td style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}>
                         {t.dueAt ? <Badge>{isoToDateUtc(t.dueAt)}</Badge> : <span style={{ opacity: 0.6 }}>—</span>}
                       </td>
@@ -579,8 +579,8 @@ export function HomePage({
                                 position: 'absolute',
                                 right: 0,
                                 top: '110%',
-                                background: '#111',
-                                border: '1px solid #333',
+                                background: '#fff',
+                                border: '1px solid #e5e7eb',
                                 borderRadius: 10,
                                 padding: 8,
                                 minWidth: 160,

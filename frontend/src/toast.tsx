@@ -19,8 +19,8 @@ export function useToast(timeoutMs = 3500) {
 
 export function Toast({ toast, onClose }: { toast: ToastState; onClose: () => void }) {
   if (!toast) return null;
-  const bg = toast.kind === 'success' ? '#0f3d1c' : toast.kind === 'error' ? '#3d0f0f' : '#0f243d';
-  const border = toast.kind === 'success' ? '#2ecc71' : toast.kind === 'error' ? '#e74c3c' : '#3498db';
+  const bg = '#ffffff';
+  const border = toast.kind === 'success' ? '#16a34a' : toast.kind === 'error' ? '#dc2626' : '#2563eb';
 
   return (
     <div
@@ -35,7 +35,8 @@ export function Toast({ toast, onClose }: { toast: ToastState; onClose: () => vo
         padding: 12,
         minWidth: 280,
         maxWidth: 460,
-        boxShadow: '0 10px 30px rgba(0,0,0,0.4)',
+        boxShadow: '0 10px 30px rgba(0,0,0,0.12)',
+        color: '#111827',
       }}
       role="status"
     >
