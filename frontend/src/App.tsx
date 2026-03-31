@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-route
 import { Toast, useToast } from './toast';
 import { AuthPage } from './pages/AuthPage';
 import { HomePage } from './pages/HomePage';
+import { api } from './api';
 
 function AppRoutes() {
   const navigate = useNavigate();
@@ -20,6 +21,27 @@ function AppRoutes() {
   }, [refreshToken]);
 
   const authed = useMemo(() => accessToken.trim().length > 0, [accessToken]);
+
+  useEffect(() => {
+    if (!authed) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        await api.me(accessToken);
+      } catch {
+        if (cancelled) return;
+        // Token is invalid/expired → force re-auth.
+        setAccessToken('');
+        setRefreshToken('');
+        navigate('/auth', { replace: true });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authed, accessToken, navigate]);
 
   function toastFn(kind: 'success' | 'error' | 'info', message: string) {
     setToast({ kind, message });
