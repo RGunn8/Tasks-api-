@@ -3,7 +3,7 @@
 A task-management backend + lightweight web UI built with **Spring Boot**, **Kotlin**, **PostgreSQL**, **Flyway**, **JWT**, and a **React + Tailwind** SPA served by the backend.
 
 - **UI:** `/app/` (login at `/app/auth`)
-- **API:** `/api/v1/*`
+- **API:** `/api/v1/*` 
 
 ## Features
 
