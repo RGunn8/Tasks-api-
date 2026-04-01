@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { api, type ApiError, type Page, type Project, type Task, type TaskPriority, type TaskStatus } from '../api';
 
 function formatErr(e: unknown) {
@@ -132,7 +133,8 @@ function Modal({
   }, [open, onClose]);
 
   if (!open) return null;
-  return (
+
+  return createPortal(
     <div
       className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/55 backdrop-blur-[1px] p-4"
       onClick={onClose}
@@ -150,7 +152,8 @@ function Modal({
           <div className="mt-4">{children}</div>
         </Card>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -536,36 +539,63 @@ export function HomePage({
                 <p className="mt-1 text-sm text-slate-600">Click “New task” to add your first task.</p>
               </div>
             ) : (
-              <div className="mt-4 overflow-auto">
-                <table className="min-w-full border-separate border-spacing-0">
-                  <thead>
-                    <tr className="text-left text-xs font-semibold text-slate-600">
-                      <th className="border-b border-slate-200 px-3 py-2">Due</th>
-                      <th className="border-b border-slate-200 px-3 py-2">Title</th>
-                      <th className="border-b border-slate-200 px-3 py-2">List</th>
-                      <th className="border-b border-slate-200 px-3 py-2">Status</th>
-                      <th className="border-b border-slate-200 px-3 py-2">Priority</th>
-                      <th className="border-b border-slate-200 px-3 py-2" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tasks.map((t) => {
-                      const saving = savingTaskId === t.id;
-                      return (
-                        <tr key={t.id} className="align-top">
-                          <td className="border-b border-slate-100 px-3 py-3 whitespace-nowrap">
-                            {t.dueAt ? <Badge>{isoToDateUtc(t.dueAt)}</Badge> : <span className="text-sm text-slate-400">—</span>}
-                          </td>
-                          <td className="border-b border-slate-100 px-3 py-3">
-                            <div className="flex items-start justify-between gap-2">
-                              <div>
-                                <div className="text-sm font-semibold text-slate-900">{t.title}</div>
-                                {t.description ? <div className="mt-1 text-sm text-slate-600">{t.description}</div> : null}
-                              </div>
+              <>
+                {/* Mobile: card list */}
+                <div className="mt-4 grid gap-3 md:hidden">
+                  {tasks.map((t) => {
+                    const saving = savingTaskId === t.id;
+                    return (
+                      <div key={t.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              {t.dueAt ? <Badge>{isoToDateUtc(t.dueAt)}</Badge> : <Badge>no due date</Badge>}
+                              <span className="text-xs text-slate-500">{t.projectId ? (projectNameById.get(t.projectId) ?? 'List') : 'Unlisted'}</span>
                               {saving ? <span className="text-xs text-slate-500">Saving…</span> : null}
                             </div>
-                          </td>
-                          <td className="border-b border-slate-100 px-3 py-3">
+                            <div className="mt-2 truncate text-sm font-semibold text-slate-900">{t.title}</div>
+                            {t.description ? <div className="mt-1 line-clamp-2 text-sm text-slate-600">{t.description}</div> : null}
+                          </div>
+
+                          <div className="relative">
+                            <Button
+                              compact
+                              onClick={() => setOpenMenuTaskId((cur) => (cur === t.id ? null : t.id))}
+                              disabled={saving}
+                              type="button"
+                            >
+                              ⋯
+                            </Button>
+                            {openMenuTaskId === t.id ? (
+                              <div className="absolute right-0 top-[110%] z-[9999] min-w-40 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+                                <button
+                                  className="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-900 hover:bg-slate-50"
+                                  onClick={() => {
+                                    setOpenMenuTaskId(null);
+                                    openEdit(t);
+                                  }}
+                                  type="button"
+                                >
+                                  Edit…
+                                </button>
+                                <button
+                                  className="mt-1 w-full rounded-lg px-3 py-2 text-left text-sm text-red-700 hover:bg-red-50"
+                                  onClick={() => {
+                                    setOpenMenuTaskId(null);
+                                    handleDelete(t.id);
+                                  }}
+                                  type="button"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-1 gap-2">
+                          <div>
+                            <Label>List</Label>
                             <Select
                               value={t.projectId ?? ''}
                               disabled={saving}
@@ -585,84 +615,179 @@ export function HomePage({
                                 </option>
                               ))}
                             </Select>
-                            <div className="mt-1 text-xs text-slate-500">
-                              {t.projectId ? projectNameById.get(t.projectId) ?? t.projectId.slice(0, 8) : 'Unlisted'}
-                            </div>
-                          </td>
-                          <td className="border-b border-slate-100 px-3 py-3">
-                            <Select
-                              value={t.status}
-                              disabled={saving}
-                              onChange={(e) =>
-                                handleInlineUpdate(t.id, {
-                                  status: e.target.value,
-                                  completedAt: e.target.value === 'DONE' ? nowIso() : null,
-                                })
-                              }
-                            >
-                              {STATUS_OPTIONS.map((s) => (
-                                <option key={s} value={s}>
-                                  {s}
-                                </option>
-                              ))}
-                            </Select>
-                          </td>
-                          <td className="border-b border-slate-100 px-3 py-3">
-                            <Select
-                              value={t.priority ?? ''}
-                              disabled={saving}
-                              onChange={(e) => handleInlineUpdate(t.id, { priority: e.target.value || null })}
-                            >
-                              <option value="">(none)</option>
-                              {PRIORITY_OPTIONS.map((p) => (
-                                <option key={p} value={p}>
-                                  {p}
-                                </option>
-                              ))}
-                            </Select>
-                          </td>
-                          <td className="border-b border-slate-100 px-3 py-3 text-right">
-                            <div className="relative inline-block">
-                              <Button
-                                compact
-                                onClick={() => setOpenMenuTaskId((cur) => (cur === t.id ? null : t.id))}
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label>Status</Label>
+                              <Select
+                                value={t.status}
                                 disabled={saving}
-                                type="button"
+                                onChange={(e) =>
+                                  handleInlineUpdate(t.id, {
+                                    status: e.target.value,
+                                    completedAt: e.target.value === 'DONE' ? nowIso() : null,
+                                  })
+                                }
                               >
-                                ⋯
-                              </Button>
-                              {openMenuTaskId === t.id ? (
-                                <div className="absolute right-0 top-[110%] z-[9999] min-w-40 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
-                                  <button
-                                    className="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-900 hover:bg-slate-50"
-                                    onClick={() => {
-                                      setOpenMenuTaskId(null);
-                                      openEdit(t);
-                                    }}
-                                    type="button"
-                                  >
-                                    Edit…
-                                  </button>
-                                  <button
-                                    className="mt-1 w-full rounded-lg px-3 py-2 text-left text-sm text-red-700 hover:bg-red-50"
-                                    onClick={() => {
-                                      setOpenMenuTaskId(null);
-                                      handleDelete(t.id);
-                                    }}
-                                    type="button"
-                                  >
-                                    Delete
-                                  </button>
-                                </div>
-                              ) : null}
+                                {STATUS_OPTIONS.map((s) => (
+                                  <option key={s} value={s}>
+                                    {s}
+                                  </option>
+                                ))}
+                              </Select>
                             </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                            <div>
+                              <Label>Priority</Label>
+                              <Select
+                                value={t.priority ?? ''}
+                                disabled={saving}
+                                onChange={(e) => handleInlineUpdate(t.id, { priority: e.target.value || null })}
+                              >
+                                <option value="">(none)</option>
+                                {PRIORITY_OPTIONS.map((p) => (
+                                  <option key={p} value={p}>
+                                    {p}
+                                  </option>
+                                ))}
+                              </Select>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Desktop/tablet: table */}
+                <div className="mt-4 hidden overflow-auto md:block">
+                  <table className="min-w-full border-separate border-spacing-0">
+                    <thead>
+                      <tr className="text-left text-xs font-semibold text-slate-600">
+                        <th className="border-b border-slate-200 px-3 py-2">Due</th>
+                        <th className="border-b border-slate-200 px-3 py-2">Title</th>
+                        <th className="border-b border-slate-200 px-3 py-2">List</th>
+                        <th className="border-b border-slate-200 px-3 py-2">Status</th>
+                        <th className="border-b border-slate-200 px-3 py-2">Priority</th>
+                        <th className="border-b border-slate-200 px-3 py-2" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tasks.map((t) => {
+                        const saving = savingTaskId === t.id;
+                        return (
+                          <tr key={t.id} className="align-top hover:bg-slate-50">
+                            <td className="border-b border-slate-100 px-3 py-3 whitespace-nowrap">
+                              {t.dueAt ? <Badge>{isoToDateUtc(t.dueAt)}</Badge> : <span className="text-sm text-slate-400">—</span>}
+                            </td>
+                            <td className="border-b border-slate-100 px-3 py-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <div className="text-sm font-semibold text-slate-900">{t.title}</div>
+                                  {t.description ? <div className="mt-1 text-sm text-slate-600">{t.description}</div> : null}
+                                </div>
+                                {saving ? <span className="text-xs text-slate-500">Saving…</span> : null}
+                              </div>
+                            </td>
+                            <td className="border-b border-slate-100 px-3 py-3">
+                              <Select
+                                value={t.projectId ?? ''}
+                                disabled={saving}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  if (!v) {
+                                    handleInlineUpdate(t.id, { unlist: true });
+                                  } else {
+                                    handleInlineUpdate(t.id, { projectId: v, unlist: false });
+                                  }
+                                }}
+                              >
+                                <option value="">(no list)</option>
+                                {projects.map((p) => (
+                                  <option key={p.id} value={p.id}>
+                                    {p.name}
+                                  </option>
+                                ))}
+                              </Select>
+                              <div className="mt-1 text-xs text-slate-500">
+                                {t.projectId ? projectNameById.get(t.projectId) ?? t.projectId.slice(0, 8) : 'Unlisted'}
+                              </div>
+                            </td>
+                            <td className="border-b border-slate-100 px-3 py-3">
+                              <Select
+                                value={t.status}
+                                disabled={saving}
+                                onChange={(e) =>
+                                  handleInlineUpdate(t.id, {
+                                    status: e.target.value,
+                                    completedAt: e.target.value === 'DONE' ? nowIso() : null,
+                                  })
+                                }
+                              >
+                                {STATUS_OPTIONS.map((s) => (
+                                  <option key={s} value={s}>
+                                    {s}
+                                  </option>
+                                ))}
+                              </Select>
+                            </td>
+                            <td className="border-b border-slate-100 px-3 py-3">
+                              <Select
+                                value={t.priority ?? ''}
+                                disabled={saving}
+                                onChange={(e) => handleInlineUpdate(t.id, { priority: e.target.value || null })}
+                              >
+                                <option value="">(none)</option>
+                                {PRIORITY_OPTIONS.map((p) => (
+                                  <option key={p} value={p}>
+                                    {p}
+                                  </option>
+                                ))}
+                              </Select>
+                            </td>
+                            <td className="border-b border-slate-100 px-3 py-3 text-right">
+                              <div className="relative inline-block">
+                                <Button
+                                  compact
+                                  onClick={() => setOpenMenuTaskId((cur) => (cur === t.id ? null : t.id))}
+                                  disabled={saving}
+                                  type="button"
+                                >
+                                  ⋯
+                                </Button>
+                                {openMenuTaskId === t.id ? (
+                                  <div className="absolute right-0 top-[110%] z-[9999] min-w-40 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+                                    <button
+                                      className="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-900 hover:bg-slate-50"
+                                      onClick={() => {
+                                        setOpenMenuTaskId(null);
+                                        openEdit(t);
+                                      }}
+                                      type="button"
+                                    >
+                                      Edit…
+                                    </button>
+                                    <button
+                                      className="mt-1 w-full rounded-lg px-3 py-2 text-left text-sm text-red-700 hover:bg-red-50"
+                                      onClick={() => {
+                                        setOpenMenuTaskId(null);
+                                        handleDelete(t.id);
+                                      }}
+                                      type="button"
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
+                                ) : null}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </Card>
         </div>
