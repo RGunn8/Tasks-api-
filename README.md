@@ -5,6 +5,13 @@ A task-management backend + lightweight web UI built with **Spring Boot**, **Kot
 - **UI:** `/app/` (login at `/app/auth`)
 - **API:** `/api/v1/*` 
 
+## Live Demo (Render)
+
+- UI: https://tasks-api-wvc4.onrender.com/app/
+- API base: https://tasks-api-wvc4.onrender.com/api/v1
+- Swagger: https://tasks-api-wvc4.onrender.com/swagger-ui/index.html
+- Health: https://tasks-api-wvc4.onrender.com/actuator/health
+
 ## Features
 
 ### Backend
@@ -149,9 +156,10 @@ Notes:
 - Proxy headers are enabled for hosted deployments.
 
 After deploy:
-- UI: `https://<your-service>.onrender.com/app/`
-- Swagger: `https://<your-service>.onrender.com/swagger-ui/index.html`
-- Health: `https://<your-service>.onrender.com/actuator/health`
+- UI: https://tasks-api-wvc4.onrender.com/app/
+- API base: https://tasks-api-wvc4.onrender.com/api/v1
+- Swagger: https://tasks-api-wvc4.onrender.com/swagger-ui/index.html
+- Health: https://tasks-api-wvc4.onrender.com/actuator/health
 
 ### Neon
 - Create a Neon Postgres database (free tier)
